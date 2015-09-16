@@ -1,0 +1,4 @@
+data/*
+mnist/*ubyte
+*.cm*
+*.annot
