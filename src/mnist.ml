@@ -7,5 +7,3 @@ let desc hidden_layer_size =
        |> add_layer Nonlinearity.Sigmoid hidden_layer_size
        |> add_layer Nonlinearity.Sigmoid 10)
 
-let nn hls = Onn.compile (desc hls)
-

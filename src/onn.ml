@@ -192,4 +192,28 @@ let report_accuracy training_offset d =
     in
     (correct, m))
 
+let td_vd_ref = ref None
+
+let do_it ~batch_size ~hidden_layers ~epochs ~learning_rate =
+  let td, vd =
+    match !td_vd_ref with
+    | None ->
+      let d = Load_mnist.data `Train in
+      let s = split_validation 10000 d in
+      td_vd_ref := Some s;
+      s
+    | Some p -> p
+  in
+  let t = compile (Mnist.desc hidden_layers) in
+  sgd Mnist.input_size td
+    ~epochs
+    ~batch_size
+    ~learning_rate
+    ~report:(fun t ->
+      let (c,d) = report_accuracy Mnist.input_size vd t in
+      Printf.printf "%d out of %d\n%!" c d)
+    rmse_cdf
+    t;
+  t
+
 
