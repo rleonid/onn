@@ -1,6 +1,6 @@
-data/*
-mnist/*ubyte
+data/mnist/*ubyte
 *.cm*
 *.annot
 *.native
 _build
+*.dat

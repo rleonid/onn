@@ -1,3 +1,6 @@
 
 default:
-	ocamlbuild -package lacaml -I mnist/ test.native
+	ocamlbuild -package lacaml -I src test.native
+
+clean:
+	ocamlbuild -clean

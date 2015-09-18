@@ -2,47 +2,6 @@
 open Lacaml.D
 open Bigarray
 
-(****** Layer Description ******)
-
-(*type hidden_desc = nonlinearity * int*)
-type nonlinearity =
-  | Tanh
-  | Sigmoid
-  | ReLUs
-  | Softmax
-
-type desc =
-  | Input   of int
-  | Hidden  of nonlinearity * int * desc
-
-let init n = Input n
-let add_layer nl n p = Hidden (nl, n, p)
-
-let example =
-  init 10
-  |> add_layer Tanh 100
-  |> add_layer Softmax 2
-
-let apply_nl = function
-  | Tanh      -> fun v -> Vec.map tanh v
-  | Sigmoid   -> fun v -> Vec.map (fun x -> 1. /. (1. +. exp (-.x))) v
-  | ReLUs     -> fun v -> Vec.map (max 0.) v
-  | Softmax   -> fun v ->
-                    let e = Vec.exp v in
-                    let d = Vec.sum e in
-                    Vec.map (fun e_i -> e_i /. d) e
-
-let deriv_nl = function
-  | Tanh      -> fun v -> Vec.sub (Vec.make (Vec.dim v) 1.)
-                            (Vec.map (fun x -> tanh x *. tanh x) v)
-  | Softmax   -> fun v -> v
-  | Sigmoid   ->
-      fun v ->
-        let ev = Vec.exp v in
-        let dn = (Vec.map (fun ez -> (1. +. ez) *. (1. +. ez)) ev) in
-        Vec.div ev dn
-  | _         -> failwith "Not implemented"
-
 
 (***** Initialization ******)
 let vi = ref (fun n -> Vec.make0 n)
@@ -79,7 +38,7 @@ let permutation_gen n =
       description -> evaluable/trainable data structures.
 *)
 type hidden =
-  { nonlinearity : nonlinearity
+  { nonlinearity : Nonlinearity.t
   ; weights      : mat
   ; bias         : vec
   ; weight_input : vec
@@ -100,13 +59,11 @@ let hidden nonlinearity weights bias =
   ; weights_e    = Mat.make0 m n
   }
 
-let to_size = function | Input n | Hidden (_, n, _) -> n
-
 let rec repr (acc, l) = function
-  | Input n             -> n, acc, l
-  | Hidden (nl, n, pl)  ->
+  | Desc.Input n             -> n, acc, l
+  | Desc.Hidden (nl, n, pl)  ->
       let b = !vi n in
-      let m = to_size pl in
+      let m = Desc.to_size pl in
       let w = Mat.of_col_vecs (Array.init m (fun _ -> !vi n)) in
       let h = hidden nl w b  in
       repr (h :: acc, l + 1) pl
@@ -127,7 +84,7 @@ let compile desc =
 let apply pla hl =
   ignore (copy ~y:hl.p_activation pla);
   gemv ~y:(copy ~y:hl.weight_input hl.bias) hl.weights pla
-  |> apply_nl hl.nonlinearity
+  |> Nonlinearity.apply hl.nonlinearity
 
 let eval t v_0 =
   if Vec.dim v_0 <> t.input_size then
@@ -138,7 +95,7 @@ let eval t v_0 =
 let backprop_l iteration hl prev_error =
   let i_f = float iteration in
   let ifi = 1. /. i_f in
-  let sz = (deriv_nl hl.nonlinearity) hl.weight_input in
+  let sz = (Nonlinearity.deriv hl.nonlinearity) hl.weight_input in
   let dl = Vec.mul prev_error sz in
   let () = (* update bias error *)
     scal (1. -. ifi) hl.bias_e;
@@ -201,22 +158,6 @@ let sgd training_offset training_data ~epochs ~batch_size ~learning_rate
     report t
   done
 
-(***** Load MNIST data *****)
-(*#use "mnist/load.ml" *)
-
-open Load 
-let () =
-  begin
-    test_images_fname := Filename.concat "mnist" !test_images_fname;
-    test_labels_fname := Filename.concat "mnist" !test_labels_fname; 
-    train_images_fname := Filename.concat "mnist" !train_images_fname;
-    train_labels_fname := Filename.concat "mnist" !train_labels_fname;
-  end
-
-let data = function
-  | `Test  -> join (parse_images !test_images_fname) (parse_labels !test_labels_fname)
-  | `Train -> join (parse_images !train_images_fname) (parse_labels !train_labels_fname)
-
 let split_validation ?seed size td =
   let () = match seed with | None -> () | Some s -> Random.init s in
   let n  = Mat.dim2 td in
@@ -225,13 +166,6 @@ let split_validation ?seed size td =
   let t = lacpy ~n:(n - size) td in
   let v = lacpy ~ac:(n - size + 1) td in
   t, v
-
-let mnistnn_desc hidden_layer_size =
-  init (28 * 28)
-  |> add_layer Sigmoid hidden_layer_size
-  |> add_layer Sigmoid 10
-
-let mnist_nn hls = compile (mnistnn_desc hls)
 
 let max_idx_in m =
   let _, mx, _ =
@@ -258,30 +192,4 @@ let report_accuracy training_offset d =
     in
     (correct, m))
 
-let td_vd_ref = ref None
 
-let do_it ~batch_size ~hidden_layers ~epochs ~learning_rate =
-  let td, vd =
-    match !td_vd_ref with
-    | None ->
-      let d = data `Train in
-      let s = split_validation 10000 d in
-      td_vd_ref := Some s;
-      s
-    | Some p -> p
-  in
-  let toffset = 28 * 28 in
-  let t = mnist_nn hidden_layers in
-  (*let cost = rmse_cdf, rmse_cost in *)
-  sgd toffset td
-    ~epochs
-    ~batch_size
-    ~learning_rate
-    ~report:(fun t ->
-      let (c,d) = report_accuracy toffset vd t in
-      Printf.printf "%d out of %d\n%!" c d)
-    rmse_cdf
-    t;
-  t
-
-let simple_t () = do_it ~batch_size:50 ~hidden_layers:20 ~epochs:30 ~learning_rate:0.3

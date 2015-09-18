@@ -1,14 +1,13 @@
-
-(* #require "lacaml" *)
+(* Load MNIST data *)
 
 open Printf
 open Bigarray
 open Lacaml.D
 
-let test_images_fname = ref "t10k-images-idx3-ubyte"
-let test_labels_fname = ref "t10k-labels-idx1-ubyte"
-let train_images_fname = ref "train-images-idx3-ubyte"
-let train_labels_fname = ref "train-labels-idx1-ubyte"
+let test_images_fname = ref "data/mnist/t10k-images-idx3-ubyte"
+let test_labels_fname = ref "data/mnist/t10k-labels-idx1-ubyte"
+let train_images_fname = ref "data/mnist/train-images-idx3-ubyte"
+let train_labels_fname = ref "data/mnist/train-labels-idx1-ubyte"
 
 let parse_labels fname =
   let ic = open_in_bin fname in
@@ -74,3 +73,37 @@ let join images labels =
     Array2.set td row (idx + 1) 1.)
     labels;
   td
+
+let test_cache_fname = "mnist_test_cache.dat"
+let train_cache_fname = "mnist_train_cache.dat"
+
+let from_cache fname (d1, d2) uncached =
+  if Sys.file_exists fname then
+    let fd = Unix.openfile fname [Unix.O_RDONLY] 0o600 in
+    let () = Printf.printf "using %s as cache\n" fname in
+    Array2.map_file fd Float64 Fortran_layout false d1 d2
+  else
+    let td = uncached () in
+    let fd = Unix.openfile fname [Unix.O_RDWR; Unix.O_CREAT] 0o644 in
+    let rd = Array2.map_file fd Float64 Fortran_layout true d1 d2 in
+    lacpy ~b:rd td
+
+let data ?(cache=true) m =
+  let uncached, fname, cols =
+    match m with
+    | `Test ->
+        (fun () -> join (parse_images !test_images_fname)
+                        (parse_labels !test_labels_fname)),
+        test_cache_fname,
+        10000
+    | `Train ->
+        (fun () -> join (parse_images !train_images_fname)
+                        (parse_labels !train_labels_fname)),
+        train_cache_fname,
+        60000
+  in
+  if cache then
+    from_cache fname (794,cols) uncached
+  else
+    uncached ()
+
