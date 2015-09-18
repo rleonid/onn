@@ -2,3 +2,5 @@ data/*
 mnist/*ubyte
 *.cm*
 *.annot
+*.native
+_build

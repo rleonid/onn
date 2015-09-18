@@ -165,15 +165,11 @@ let rmse_cdf ~y ~y_hat = Vec.sub y_hat y
 let assign_errors learning_rate t =
   let alpha = -1.0 *. learning_rate in
   Array.iter (fun hl ->
-    (*let () = Format.print_flush () in
-    let () = pp_vec Format.std_formatter hl.bias_e in
-    let () = Printf.printf "----------------\n%!" in *)
     axpy ~alpha hl.bias_e hl.bias;
     Mat.axpy ~alpha hl.weights_e hl.weights)
     t.hidden_layers
 
 let train_on training_offset td learning_rate cdf t =
-  let data_size = Mat.dim1 td - 1 in
   let ws = Vec.make0 training_offset in
   let e = eval t in
   for i = 1 to Mat.dim2 td do
@@ -206,12 +202,16 @@ let sgd training_offset training_data ~epochs ~batch_size ~learning_rate
   done
 
 (***** Load MNIST data *****)
-#use "mnist/load.ml" ;;
+(*#use "mnist/load.ml" *)
 
-test_images_fname := Filename.concat "mnist" !test_images_fname ;;
-test_labels_fname := Filename.concat "mnist" !test_labels_fname ;;
-train_images_fname := Filename.concat "mnist" !train_images_fname ;;
-train_labels_fname := Filename.concat "mnist" !train_labels_fname ;;
+open Load 
+let () =
+  begin
+    test_images_fname := Filename.concat "mnist" !test_images_fname;
+    test_labels_fname := Filename.concat "mnist" !test_labels_fname; 
+    train_images_fname := Filename.concat "mnist" !train_images_fname;
+    train_labels_fname := Filename.concat "mnist" !train_labels_fname;
+  end
 
 let data = function
   | `Test  -> join (parse_images !test_images_fname) (parse_labels !test_labels_fname)
@@ -284,4 +284,4 @@ let do_it ~batch_size ~hidden_layers ~epochs ~learning_rate =
     t;
   t
 
-let simple_t () = do_it ~batch_size:50 ~hidden_layers:20 ~epochs:30 ~learning_rate:0.3 ;;
+let simple_t () = do_it ~batch_size:50 ~hidden_layers:20 ~epochs:30 ~learning_rate:0.3
