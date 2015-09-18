@@ -80,17 +80,34 @@ let compile desc =
   let output_size   = Vec.dim hidden_layers.(len - 1).bias in
   { output_size; hidden_layers; input_size}
 
+(* TODO: convt to polymorphic variant! *)
+type vector_wrap =
+  | Simple of vec
+  | Only of int * vec
+  | Offset of int * vec
+
 (* pla -> previous layers activation *)
 let apply pla hl =
-  ignore (copy ~y:hl.p_activation pla);
-  gemv ~y:(copy ~y:hl.weight_input hl.bias) hl.weights pla
+  let () =
+    match pla with
+    | Simple v      -> ignore (copy ~y:hl.p_activation v);
+    | Only (n, v)   -> ignore (copy ~n ~y:hl.p_activation v);
+    | Offset (o, v) -> ignore (copy ~ofsx:(o + 1) ~y:hl.p_activation v);
+  in
+  gemv ~y:(copy ~y:hl.weight_input hl.bias) hl.weights hl.p_activation
   |> Nonlinearity.apply hl.nonlinearity
+  |> fun v -> Simple v
+
+let size_check desired = function
+  | Simple v      -> Vec.dim v = desired
+  | Only (n, v)   -> n = desired && (Vec.dim v > n)
+  | Offset (o, v) -> Vec.dim v - o = desired
 
 let eval t v_0 =
-  if Vec.dim v_0 <> t.input_size then
+  if not (size_check t.input_size v_0) then
     raise (Invalid_argument "improper size.")
   else
-    Array.fold_left apply v_0 t.hidden_layers
+      Array.fold_left apply v_0 t.hidden_layers
 
 let backprop_l iteration hl prev_error =
   let i_f = float iteration in
@@ -115,7 +132,20 @@ let backprop iteration cost_error t =
 
 let rmse_cost y y_hat = (Vec.ssqr_diff y y_hat) /. 2.
 (* This can be a source of confusion *)
-let rmse_cdf ~y ~y_hat = Vec.sub y_hat y
+let rmse_cdf ~y ~y_hat =
+  let n, ofsx, y_hat' =
+    match y_hat with
+    | Simple v      -> Vec.dim v,         1, v
+    | Only (n, v)   -> n,                 1, v
+    | Offset (o, v) -> Vec.dim v - o, o + 1, v
+  in
+  let ofsy, y' =
+    match y with
+    | Simple v      ->     1, v
+    | Only (_, v)   ->     1, v
+    | Offset (o, v) -> o + 1, v
+  in
+  Vec.sub ~n ~ofsx y_hat' ~ofsy y'
 
 (* The 'errors' are already averaged! *)
 let assign_errors learning_rate t =
@@ -126,13 +156,13 @@ let assign_errors learning_rate t =
     t.hidden_layers
 
 let train_on training_offset td learning_rate cdf t =
-  let ws = Vec.make0 training_offset in
+  (*let ws = Vec.make0 training_offset in *)
   let e = eval t in
   for i = 1 to Mat.dim2 td do
     let example = Mat.col td i in
-    let training = copy ~y:ws ~n:training_offset example in
-    let y_hat   = e training in
-    let y       = copy ~ofsx:(training_offset + 1) example in
+    (*let training = copy ~y:ws ~n:training_offset example in *)
+    let y_hat   = e (Only (training_offset, example)) in
+    let y       = Offset(training_offset, example) (*copy ~ofsx:(training_offset + 1) example*) in
     (*let _c      = cost y y_hat in *)
     let costd   = cdf ~y ~y_hat in
     let _finald = backprop i costd t in
@@ -167,26 +197,39 @@ let split_validation ?seed size td =
   t, v
 
 let max_idx_in m =
-  let _, mx, _ =
-    Vec.fold (fun (i,j,m) v -> if v > m then (i+1,i,v) else (i+1,j,m))
-      (1, 0, neg_infinity) m
+  let start, stop, v =
+    match m with
+    | Simple v      -> 1, Vec.dim v, v
+    | Only (n, v)   -> 1, n, v
+    | Offset (o, v) -> o + 1, Vec.dim v, v
   in
-  mx
+  let rec loop mx ix i =
+    if i > stop then ix else
+      let a = Array1.get v i in
+      if a > mx then
+        loop a i (i + 1)
+      else
+        loop mx ix (i + 1)
+  in
+  loop neg_infinity start start
 
 let correct y_p y =
   let i = max_idx_in y_p in
-  Array1.get y i = 1.0
+  match y with
+  | Simple v      -> Array1.get v i       = 1.0
+  | Only (_, v)   -> Array1.get v i       = 1.0   (* Weird, Check? *)
+  | Offset (o, v) -> Array1.get v (o + i) = 1.0   (* 1 <= i *)
 
 let report_accuracy training_offset d =
-  let ws = Vec.make0 training_offset in
+  (*let ws = Vec.make0 training_offset in *)
   let m = Mat.dim2 d in
   (fun t ->
     let e = eval t in
     let nc =
       Mat.fold_cols (fun a c ->
-        let training = copy ~y:ws ~n:training_offset c in
+        let training = Only (training_offset, c) in
         let y_hat    = e training in
-        let y        = copy ~ofsx:(training_offset + 1) c in
+        let y        = Offset (training_offset, c) (*copy ~ofsx:(training_offset + 1) c*) in
         if correct y_hat y then a + 1 else a) 0 d
     in
     (nc, m))
