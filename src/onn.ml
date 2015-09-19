@@ -101,12 +101,11 @@ let backprop_l iteration hl prev_error =
     scal (1. -. ifi) hl.bias_e;
     axpy ~alpha:ifi dl hl.bias_e
   in
-  let dl_n = gemv ~trans:`T hl.weights dl in
   let () = (* update weight error *)
     Mat.scal (1. -. ifi) hl.weights_e;
     ignore (ger ~alpha:ifi dl hl.p_activation hl.weights_e)
   in
-  dl_n
+  gemv ~trans:`T hl.weights dl
 
 (* iteration which training datum (in mini batch) are we updating
   to allow implace, (online) averaging of errors. *)
@@ -174,7 +173,7 @@ let max_idx_in m =
   in
   mx
 
-let correct y_p y =
+let correct t y_p y =
   let i = max_idx_in y_p in
   Array1.get y i = 1.0
 
@@ -183,22 +182,22 @@ let report_accuracy training_offset d =
   let m = Mat.dim2 d in
   (fun t ->
     let e = eval t in
-    let correct =
+    let nc =
       Mat.fold_cols (fun a c ->
         let training = copy ~y:ws ~n:training_offset c in
         let y_hat    = e training in
         let y        = copy ~ofsx:(training_offset + 1) c in
-        if correct y_hat y then a + 1 else a) 0 d
+        if correct t y_hat y then a + 1 else a) 0 d
     in
-    (correct, m))
+    (nc, m))
 
 let td_vd_ref = ref None
 
-let do_it ~batch_size ~hidden_layers ~epochs ~learning_rate =
+let do_it ?cache ~batch_size ~hidden_layers ~epochs ~learning_rate =
   let td, vd =
     match !td_vd_ref with
     | None ->
-      let d = Load_mnist.data `Train in
+      let d = Load_mnist.data ?cache `Train in
       let s = split_validation 10000 d in
       td_vd_ref := Some s;
       s
@@ -215,5 +214,4 @@ let do_it ~batch_size ~hidden_layers ~epochs ~learning_rate =
     rmse_cdf
     t;
   t
-
 
