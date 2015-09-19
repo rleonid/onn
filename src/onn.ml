@@ -173,7 +173,7 @@ let max_idx_in m =
   in
   mx
 
-let correct t y_p y =
+let correct y_p y =
   let i = max_idx_in y_p in
   Array1.get y i = 1.0
 
@@ -187,7 +187,7 @@ let report_accuracy training_offset d =
         let training = copy ~y:ws ~n:training_offset c in
         let y_hat    = e training in
         let y        = copy ~ofsx:(training_offset + 1) c in
-        if correct t y_hat y then a + 1 else a) 0 d
+        if correct y_hat y then a + 1 else a) 0 d
     in
     (nc, m))
 

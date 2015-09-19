@@ -1,0 +1,40 @@
+2015-09-18:
+yellowhammer:onn$ time ./test.native 
+using mnist_train_cache.dat as cache
+8029 out of 10000
+8282 out of 10000
+8569 out of 10000
+8535 out of 10000
+8623 out of 10000
+8681 out of 10000
+8696 out of 10000
+8777 out of 10000
+8933 out of 10000
+8858 out of 10000
+8847 out of 10000
+9037 out of 10000
+8951 out of 10000
+9248 out of 10000
+9249 out of 10000
+9540 out of 10000
+9565 out of 10000
+9584 out of 10000
+9522 out of 10000
+9523 out of 10000
+9548 out of 10000
+9526 out of 10000
+9552 out of 10000
+9529 out of 10000
+9583 out of 10000
+9611 out of 10000
+9538 out of 10000
+9583 out of 10000
+9544 out of 10000
+9611 out of 10000
+using mnist_test_cache.dat as cache
+9596 out of 10000 on test data.
+
+real  4m24.567s
+user  4m31.981s
+sys 0m33.019s
+
