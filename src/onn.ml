@@ -136,8 +136,9 @@ let train_on training_offset td learning_rate cdf t =
     (*let _c      = cost y y_hat in *)
     let costd   = cdf ~y ~y_hat in
     let _finald = backprop i costd t in
-    assign_errors learning_rate t
-  done
+    ()
+  done;
+  assign_errors learning_rate t
 
 let sgd_epoch training_offset td batch_size learning_rate c t =
   let td_size = Mat.dim2 td in
