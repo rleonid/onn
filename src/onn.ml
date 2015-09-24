@@ -92,6 +92,13 @@ type hidden =
   ; weights_e    : mat
   }
 
+let copy_hidden h =
+  { h with bias      = copy h.bias
+         ; weights   = lacpy h.weights
+         ; bias_e    = copy h.bias_e
+         ; weights_e = lacpy h.weights_e
+         }
+
 type 'a ed =
   { weight_input : 'a
   ; p_activation : 'a
@@ -131,6 +138,9 @@ type t =
   ; hidden_layers : hidden array
   ; output_size   : int
   }
+
+let copy_t t =
+  { t with hidden_layers = Array.map copy_hidden t.hidden_layers }
 
 let compile desc =
   let input_size, as_lst, len = repr ([],0) desc in
