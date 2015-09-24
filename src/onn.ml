@@ -2,6 +2,54 @@
 open Lacaml.D
 open Bigarray
 
+let invalidArg fmt = Printf.ksprintf (fun s -> raise (Invalid_argument s)) fmt
+
+module Array = struct
+  include Array
+
+  let fold_left2 f i a b =
+    let n = Array.length a in
+    let m = Array.length b in
+    if n <> m then
+      invalidArg "fold_left2: unequal lengths %d and %d" n m
+    else
+      begin
+        let r = ref i in
+        for i = 0 to n - 1 do
+          r := f !r a.(i) b.(i)
+        done;
+        !r
+      end
+
+  let fold_right2 f a b i =
+    let n = Array.length a in
+    let m = Array.length b in
+    if n <> m then
+      invalidArg "fold_right2: unequal lengths %d and %d" n m
+    else
+      begin
+        let r = ref i in
+        for i = n - 1 downto 0 do
+          r := f a.(i) b.(i) !r
+        done;
+        !r
+      end
+
+end
+
+module Mat = struct
+  include Mat
+
+  (** This is mostly used in the application of the nonlinearity,
+      it probably makes more sense to have specialized routines on
+      a per nonlinearity to perform mat -> mat mapping. *)
+  let map_cols f m =
+    Mat.fold_cols (fun a vec -> f vec :: a) [] m
+    |> List.rev
+    |> Array.of_list
+    |> Mat.of_col_vecs
+
+end
 
 (***** Initialization ******)
 let vi = ref (fun n -> Vec.make0 n)
@@ -33,30 +81,40 @@ let permutation_gen n =
   |> Array1.of_array Int32 Fortran_layout
 
 
-
 (****** Compilation
       description -> evaluable/trainable data structures.
 *)
 type hidden =
   { nonlinearity : Nonlinearity.t
-  ; weights      : mat
   ; bias         : vec
-  ; weight_input : vec
-  ; p_activation : vec
+  ; weights      : mat
   ; bias_e       : vec
   ; weights_e    : mat
   }
 
-let hidden nonlinearity weights bias =
+type 'a ed =
+  { weight_input : 'a
+  ; p_activation : 'a
+  }
+
+let hidden ?batch nonlinearity weights bias =
   let m = Mat.dim1 weights in
   let n = Mat.dim2 weights in
   { nonlinearity
-  ; weights
   ; bias
-  ; weight_input = Vec.make0 m
-  ; p_activation = Vec.make0 n
+  ; weights
   ; bias_e       = Vec.make0 m
   ; weights_e    = Mat.make0 m n
+  }
+
+let single_ed ~m ~n =
+  { weight_input = Vec.make0 m
+  ; p_activation = Vec.make0 n
+  }
+
+let batch_ed ~m ~n b =
+  { weight_input = Mat.make0 m b
+  ; p_activation = Mat.make0 n b
   }
 
 let rec repr (acc, l) = function
@@ -80,22 +138,52 @@ let compile desc =
   let output_size   = Vec.dim hidden_layers.(len - 1).bias in
   { output_size; hidden_layers; input_size}
 
+let single_eda t =
+  t.hidden_layers
+  |> Array.map (fun hl ->
+      let m = Mat.dim1 hl.weights in
+      let n = Mat.dim2 hl.weights in
+      single_ed ~m ~n)
+
+let batch_eda b t =
+  t.hidden_layers
+  |> Array.map (fun hl ->
+      let m = Mat.dim1 hl.weights in
+      let n = Mat.dim2 hl.weights in
+      batch_ed ~m ~n b)
+
 (* pla -> previous layers activation *)
-let apply pla hl =
-  ignore (copy ~y:hl.p_activation pla);
-  gemv ~y:(copy ~y:hl.weight_input hl.bias) hl.weights pla
+let apply pla hl ed =
+  ignore (copy ~y:ed.p_activation pla);
+  gemv ~y:(copy ~y:ed.weight_input hl.bias) hl.weights pla
   |> Nonlinearity.apply hl.nonlinearity
 
-let eval t v_0 =
+let apply_m plam hl ed =
+  let m = Mat.dim2 plam in
+  (* Keep the previous layers activation for backprop *)
+  ignore (lacpy ~b:ed.p_activation plam);
+  (* Initialize the weight projection with bias. *)
+  let bias_mat = Mat.of_col_vecs (Array.init m (fun _ -> hl.bias)) in
+  ignore (lacpy ~b:ed.weight_input bias_mat);
+  gemm ~c:ed.weight_input hl.weights plam
+  |> Mat.map_cols (Nonlinearity.apply hl.nonlinearity)
+
+let eval t eda v_0 =
   if Vec.dim v_0 <> t.input_size then
     raise (Invalid_argument "improper size.")
   else
-    Array.fold_left apply v_0 t.hidden_layers
+    Array.fold_left2 apply v_0 t.hidden_layers eda
 
-let backprop_l iteration hl prev_error =
+let eval_m t eda vm =
+  if Mat.dim1 vm <> t.input_size then
+    raise (Invalid_argument "improper size.")
+  else
+    Array.fold_left2 apply_m vm t.hidden_layers eda
+
+let backprop_l iteration hl ed prev_error =
   let i_f = float iteration in
   let ifi = 1. /. i_f in
-  let sz = (Nonlinearity.deriv hl.nonlinearity) hl.weight_input in
+  let sz = (Nonlinearity.deriv hl.nonlinearity) ed.weight_input in
   let dl = Vec.mul prev_error sz in
   let () = (* update bias error *)
     scal (1. -. ifi) hl.bias_e;
@@ -103,18 +191,36 @@ let backprop_l iteration hl prev_error =
   in
   let () = (* update weight error *)
     Mat.scal (1. -. ifi) hl.weights_e;
-    ignore (ger ~alpha:ifi dl hl.p_activation hl.weights_e)
+    ignore (ger ~alpha:ifi dl ed.p_activation hl.weights_e)
   in
   gemv ~trans:`T hl.weights dl
 
-(* iteration which training datum (in mini batch) are we updating
+(* each column of prev_error is an error of a training example. *)
+let backprop_m hl ed prev_errors =
+  let m = Mat.dim1 prev_errors in
+  let n = Mat.dim2 prev_errors in
+  let szs = Mat.map_cols (Nonlinearity.deriv hl.nonlinearity) ed.weight_input in
+  let dls = Mat.init_cols m n (fun r c -> prev_errors.{r,c} *. szs.{r,c}) in
+  let alpha = 1. /. (float n) in
+  (* update bias error *)
+  let () = ignore (gemv ~y:hl.bias_e ~alpha dls (Vec.make n 1.)) in
+  (* update weight error *)
+  (* ~beta: zero out the input.
+     ~alpha: averaging over size of batch *)
+  let () = ignore (gemm ~alpha ~transb:`T dls ed.p_activation ~beta:0.0 ~c:hl.weights_e) in
+  gemm ~transa:`T hl.weights dls
+
+
+(* iteration: which training datum (in mini batch) are we updating
   to allow implace, (online) averaging of errors. *)
-let backprop iteration cost_error t =
+let backprop iteration cost_error t eda =
   let bp = backprop_l iteration in
-  Array.fold_right bp t.hidden_layers cost_error
+  Array.fold_right2 bp t.hidden_layers eda cost_error
 
 let rmse_cost y y_hat = (Vec.ssqr_diff y y_hat) /. 2.
 (* This can be a source of confusion *)
+type explicit_cost =  y:vec -> y_hat:vec -> vec
+
 let rmse_cdf ~y ~y_hat = Vec.sub y_hat y
 
 (* The 'errors' are already averaged! *)
@@ -125,9 +231,10 @@ let assign_errors learning_rate t =
     Mat.axpy ~alpha hl.weights_e hl.weights)
     t.hidden_layers
 
-let train_on training_offset td learning_rate cdf t =
+let iterative_train training_offset td learning_rate cdf t =
   let ws = Vec.make0 training_offset in
-  let e = eval t in
+  let ed = single_eda t in
+  let e = eval t ed in
   for i = 1 to Mat.dim2 td do
     let example = Mat.col td i in
     let training = copy ~y:ws ~n:training_offset example in
@@ -135,12 +242,27 @@ let train_on training_offset td learning_rate cdf t =
     let y       = copy ~ofsx:(training_offset + 1) example in
     (*let _c      = cost y y_hat in *)
     let costd   = cdf ~y ~y_hat in
-    let _finald = backprop i costd t in
+    let _finald = backprop i costd t ed in
     ()
   done;
   assign_errors learning_rate t
 
-let sgd_epoch training_offset td batch_size learning_rate c t =
+let batch_train ~batch_size training_offset td learning_rate cdf t =
+  let eda    = batch_eda batch_size t in
+  let y_hats = eval_m t eda (lacpy ~m:training_offset td) in
+  let ys     = lacpy ~ar:(training_offset + 1) td in
+  let costs  =
+    Array.init (Mat.dim2 td) (fun i ->
+      let j     = i + 1 in
+      let y_hat = Mat.col y_hats j in
+      let y     = Mat.col ys j in
+      cdf ~y ~y_hat)
+    |> Mat.of_col_vecs
+  in
+  let _find  = Array.fold_right2 backprop_m t.hidden_layers eda costs in
+  assign_errors learning_rate t
+
+let sgd_epoch iterative training_offset td ~batch_size learning_rate c t =
   let td_size = Mat.dim2 td in
   let perm = permutation_gen td_size in
   let () = lapmt td perm in
@@ -148,13 +270,16 @@ let sgd_epoch training_offset td batch_size learning_rate c t =
   for i = 0 to num_bat do
     (* Is this copy faster than Mat.of_cols (Mat.copy ...)? *)
     let epoch_td = lacpy ~ac:(i * batch_size + 1) ~n:batch_size td in
-    train_on training_offset epoch_td learning_rate c t
+    if iterative then
+      iterative_train training_offset epoch_td learning_rate c t
+    else
+      batch_train ~batch_size training_offset epoch_td learning_rate c t
   done
 
-let sgd training_offset training_data ~epochs ~batch_size ~learning_rate
+let sgd iterative training_offset training_data ~epochs ~batch_size ~learning_rate
   ?(report=(fun _ -> ())) c t =
   for i = 1 to epochs do
-    sgd_epoch training_offset training_data batch_size learning_rate c t;
+    sgd_epoch iterative training_offset training_data ~batch_size learning_rate c t;
     report t
   done
 
@@ -182,7 +307,8 @@ let report_accuracy training_offset d =
   let ws = Vec.make0 training_offset in
   let m = Mat.dim2 d in
   (fun t ->
-    let e = eval t in
+    let eda = single_eda t in (* TODO: need an eval mode where we don't save this. *)
+    let e = eval t eda in
     let nc =
       Mat.fold_cols (fun a c ->
         let training = copy ~y:ws ~n:training_offset c in
@@ -194,18 +320,21 @@ let report_accuracy training_offset d =
 
 let td_vd_ref = ref None
 
+let load_and_save_mnist_data ?cache () =
+  let d = Load_mnist.data ?cache `Train in
+  let s = split_validation 10000 d in
+  td_vd_ref := Some s;
+  s
+
 let do_it ?cache ~batch_size ~hidden_layers ~epochs ~learning_rate =
   let td, vd =
     match !td_vd_ref with
-    | None ->
-      let d = Load_mnist.data ?cache `Train in
-      let s = split_validation 10000 d in
-      td_vd_ref := Some s;
-      s
+    | None   -> load_and_save_mnist_data ?cache ()
     | Some p -> p
   in
   let t = compile (Mnist.desc hidden_layers) in
-  sgd Mnist.input_size td
+  sgd false
+    Mnist.input_size td
     ~epochs
     ~batch_size
     ~learning_rate
