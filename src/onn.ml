@@ -165,7 +165,8 @@ let batch_eda b t =
 (* pla -> previous layers activation *)
 let apply pla hl ed =
   ignore (copy ~y:ed.p_activation pla);
-  gemv ~y:(copy ~y:ed.weight_input hl.bias) hl.weights pla
+  ignore (copy ~y:ed.weight_input hl.bias);
+  gemv ~beta:1. ~y:ed.weight_input hl.weights pla
   |> Nonlinearity.apply hl.nonlinearity
 
 let apply_m plam hl ed =
@@ -175,7 +176,7 @@ let apply_m plam hl ed =
   (* Initialize the weight projection with bias. *)
   let bias_mat = Mat.of_col_vecs (Array.init m (fun _ -> hl.bias)) in
   ignore (lacpy ~b:ed.weight_input bias_mat);
-  gemm ~c:ed.weight_input hl.weights plam
+  gemm ~beta:1. ~c:ed.weight_input hl.weights plam
   |> Mat.map_cols (Nonlinearity.apply hl.nonlinearity)
 
 let eval t eda v_0 =
@@ -212,14 +213,13 @@ let backprop_m hl ed prev_errors =
   let szs = Mat.map_cols (Nonlinearity.deriv hl.nonlinearity) ed.weight_input in
   let dls = Mat.init_cols m n (fun r c -> prev_errors.{r,c} *. szs.{r,c}) in
   let alpha = 1. /. (float n) in
-  (* update bias error *)
+  (* update bias error 
+  beta is zero by default to zero out the previous error. *)
   let () = ignore (gemv ~y:hl.bias_e ~alpha dls (Vec.make n 1.)) in
   (* update weight error *)
-  (* ~beta: zero out the input.
-     ~alpha: averaging over size of batch *)
-  let () = ignore (gemm ~alpha ~transb:`T dls ed.p_activation ~beta:0.0 ~c:hl.weights_e) in
+  (* ~alpha: averaging over size of batch *)
+  let () = ignore (gemm ~alpha ~transb:`T dls ed.p_activation ~c:hl.weights_e) in
   gemm ~transa:`T hl.weights dls
-
 
 (* iteration: which training datum (in mini batch) are we updating
   to allow implace, (online) averaging of errors. *)

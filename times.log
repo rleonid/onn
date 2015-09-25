@@ -1,76 +1,80 @@
-using mnist_train_cache.dat as cache
-7660 out of 10000
-7774 out of 10000
-8569 out of 10000
-8675 out of 10000
-8688 out of 10000
-8757 out of 10000
-8769 out of 10000
-8753 out of 10000
-8777 out of 10000
-8812 out of 10000
+2015-09-25: After fixing correct usage of bias.
+
+Batched:
+7713 out of 10000
+8564 out of 10000
+8654 out of 10000
+8709 out of 10000
+8719 out of 10000
+8746 out of 10000
+8788 out of 10000
+8722 out of 10000
+8763 out of 10000
+8793 out of 10000
+8789 out of 10000
+8810 out of 10000
+8810 out of 10000
 8802 out of 10000
-8781 out of 10000
-8813 out of 10000
-8820 out of 10000
-8823 out of 10000
-8818 out of 10000
-8820 out of 10000
-8830 out of 10000
-8835 out of 10000
+8815 out of 10000
+8825 out of 10000
+8819 out of 10000
+8836 out of 10000
 8842 out of 10000
-8847 out of 10000
-8842 out of 10000
-8850 out of 10000
-8866 out of 10000
-8864 out of 10000
-8857 out of 10000
-8853 out of 10000
-8857 out of 10000
-8870 out of 10000
-8868 out of 10000
-using mnist_test_cache.dat as cache
-8847 out of 10000 on test data.
-
-real  3m35.685s
-user  3m39.959s
-sys 0m39.395s
-
-When batched:
-
-7615 out of 10000
-8560 out of 10000
-8628 out of 10000
-8672 out of 10000
-8714 out of 10000
-8712 out of 10000
-8753 out of 10000
-8750 out of 10000
-8772 out of 10000
-8761 out of 10000
-8796 out of 10000
-9559 out of 10000
-9611 out of 10000
-9631 out of 10000
-9634 out of 10000
-9633 out of 10000
-9631 out of 10000
-9643 out of 10000
+8838 out of 10000
+8844 out of 10000
+8852 out of 10000
+8862 out of 10000
+8892 out of 10000
+9599 out of 10000
+9630 out of 10000
+9656 out of 10000
 9639 out of 10000
-9652 out of 10000
-9657 out of 10000
-9646 out of 10000
-9672 out of 10000
-9655 out of 10000
-9659 out of 10000
-9660 out of 10000
-9653 out of 10000
-9664 out of 10000
-9663 out of 10000
-9663 out of 10000
+9658 out of 10000
+9665 out of 10000
 using mnist_test_cache.dat as cache
-9656 out of 10000 on test data.
+9657 out of 10000 on test data.
 
-real  1m37.639s
-user  1m44.484s
-sys 0m15.438s
+real  1m37.838s
+user  1m47.719s
+sys 0m14.659s
+
+Iterative:
+
+using mnist_train_cache.dat as cache
+7613 out of 10000
+7709 out of 10000
+7785 out of 10000
+7801 out of 10000
+7848 out of 10000
+7855 out of 10000
+7884 out of 10000
+7875 out of 10000
+7925 out of 10000
+7989 out of 10000
+7986 out of 10000
+8091 out of 10000
+8107 out of 10000
+8244 out of 10000
+8784 out of 10000
+8821 out of 10000
+8831 out of 10000
+8811 out of 10000
+8885 out of 10000
+9590 out of 10000
+9632 out of 10000
+9629 out of 10000
+9643 out of 10000
+9656 out of 10000
+9638 out of 10000
+9652 out of 10000
+9643 out of 10000
+9623 out of 10000
+9641 out of 10000
+9648 out of 10000
+using mnist_test_cache.dat as cache
+9658 out of 10000 on test data.
+
+real  5m29.447s
+user  5m26.504s
+sys 1m13.162s
+
