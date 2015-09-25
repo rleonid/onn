@@ -223,7 +223,7 @@ let backprop_m hl ed prev_errors =
 
 (* iteration: which training datum (in mini batch) are we updating
   to allow implace, (online) averaging of errors. *)
-let backprop iteration cost_error t eda =
+let backprop_i iteration cost_error t eda =
   let bp = backprop_l iteration in
   Array.fold_right2 bp t.hidden_layers eda cost_error
 
@@ -241,23 +241,20 @@ let assign_errors learning_rate t =
     Mat.axpy ~alpha hl.weights_e hl.weights)
     t.hidden_layers
 
-let iterative_train training_offset td learning_rate cdf t =
+let iterative_train training_offset td cdf t =
   let ws = Vec.make0 training_offset in
   let ed = single_eda t in
   let e = eval t ed in
-  for i = 1 to Mat.dim2 td do
-    let example = Mat.col td i in
-    let training = copy ~y:ws ~n:training_offset example in
-    let y_hat   = e training in
+  let i = ref 1 in
+  Mat.map_cols (fun example ->
+    let y_hat   = e (copy ~y:ws ~n:training_offset example) in
     let y       = copy ~ofsx:(training_offset + 1) example in
-    (*let _c      = cost y y_hat in *)
     let costd   = cdf ~y ~y_hat in
-    let _finald = backprop i costd t ed in
-    ()
-  done;
-  assign_errors learning_rate t
+    let final_d = backprop_i !i costd t ed in
+    incr i;
+    final_d) td
 
-let batch_train training_offset td learning_rate cdf t =
+let batch_train training_offset td cdf t =
   let b_size = Mat.dim2 td in
   let eda    = batch_eda b_size t in
   let y_hats = eval_m t eda (lacpy ~m:training_offset td) in
@@ -270,8 +267,7 @@ let batch_train training_offset td learning_rate cdf t =
       cdf ~y ~y_hat)
     |> Mat.of_col_vecs
   in
-  let _find  = Array.fold_right2 backprop_m t.hidden_layers eda costs in
-  assign_errors learning_rate t
+  Array.fold_right2 backprop_m t.hidden_layers eda costs
 
 let sgd_epoch iterative training_offset td ~batch_size learning_rate c t =
   let td_size = Mat.dim2 td in
@@ -281,10 +277,13 @@ let sgd_epoch iterative training_offset td ~batch_size learning_rate c t =
   for i = 0 to num_bat do
     (* Is this copy faster than Mat.of_cols (Mat.copy ...)? *)
     let epoch_td = lacpy ~ac:(i * batch_size + 1) ~n:batch_size td in
-    if iterative then
-      iterative_train training_offset epoch_td learning_rate c t
-    else
-      batch_train training_offset epoch_td learning_rate c t
+    let _final_d =
+      if iterative then
+        iterative_train training_offset epoch_td c t
+      else
+        batch_train training_offset epoch_td c t
+    in
+    assign_errors learning_rate t
   done
 
 let sgd iterative training_offset training_data ~epochs ~batch_size ~learning_rate
