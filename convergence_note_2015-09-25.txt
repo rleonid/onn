@@ -1,0 +1,29 @@
+
+Investigating why the iterative mode doesn't converge but the batch one does,
+this script tries to see if there is a functional difference.
+But all I end up getting are differences in rounding errors.
+All of the weights are different in the e-17th place!
+
+(* Setup some nets *)
+let t = Onn.compile (Mnist.desc 100) ;;
+let tc = Onn.copy_t t ;;
+t = tc ;; (* true *)
+
+(* Data *)
+let td,vd = Onn.load_and_save_mnist_data ~cache:true () ;;
+let etd = lacpy ~n:100 td ;;
+
+let fd = Onn.iterative_train Mnist.input_size etd Onn.rmse_cdf t ;;
+let fdc = Onn.batch_train Mnist.input_size etd Onn.rmse_cdf tc ;;
+
+(* Compute difference of two matrices *)
+let dmat m1 m2 = let c = lacpy m2 in Mat.axpy ~alpha:(-1.) m1 c; c ;;
+
+(* investigate *)
+dmat t.Onn.hidden_layers.(0).Onn.weights tc.Onn.hidden_layers.(0).Onn.weights  ;;
+dmat t.Onn.hidden_layers.(0).Onn.weights tc.Onn.hidden_layers.(0).Onn.weights |> Mat.fold_cols (fun a v -> Vec.max v :: a) [] ;;
+dmat t.Onn.hidden_layers.(1).Onn.weights tc.Onn.hidden_layers.(1).Onn.weights |> Mat.fold_cols (fun a v -> Vec.max v :: a) [] ;;
+dmat t.Onn.hidden_layers.(1).Onn.weights_e tc.Onn.hidden_layers.(1).Onn.weights_e |> Mat.fold_cols (fun a v -> Vec.max v :: a) [] ;;
+dmat t.Onn.hidden_layers.(0).Onn.weights_e tc.Onn.hidden_layers.(0).Onn.weights_e |> Mat.fold_cols (fun a v -> Vec.max v :: a) [] ;;
+dmat t.Onn.hidden_layers.(0).Onn.weights_e tc.Onn.hidden_layers.(0).Onn.weights_e |> Mat.fold_cols (fun a v -> Vec.max v :: a) [] |> List.fold max 0.0 ;;
+dmat t.Onn.hidden_layers.(0).Onn.weights_e tc.Onn.hidden_layers.(0).Onn.weights_e |> Mat.fold_cols (fun a v -> Vec.max v :: a) [] |> List.fold_left max 0.0 ;;

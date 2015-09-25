@@ -35,3 +35,42 @@ using mnist_test_cache.dat as cache
 real  3m35.685s
 user  3m39.959s
 sys 0m39.395s
+
+When batched:
+
+7615 out of 10000
+8560 out of 10000
+8628 out of 10000
+8672 out of 10000
+8714 out of 10000
+8712 out of 10000
+8753 out of 10000
+8750 out of 10000
+8772 out of 10000
+8761 out of 10000
+8796 out of 10000
+9559 out of 10000
+9611 out of 10000
+9631 out of 10000
+9634 out of 10000
+9633 out of 10000
+9631 out of 10000
+9643 out of 10000
+9639 out of 10000
+9652 out of 10000
+9657 out of 10000
+9646 out of 10000
+9672 out of 10000
+9655 out of 10000
+9659 out of 10000
+9660 out of 10000
+9653 out of 10000
+9664 out of 10000
+9663 out of 10000
+9663 out of 10000
+using mnist_test_cache.dat as cache
+9656 out of 10000 on test data.
+
+real  1m37.639s
+user  1m44.484s
+sys 0m15.438s
