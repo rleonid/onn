@@ -257,12 +257,13 @@ let iterative_train training_offset td learning_rate cdf t =
   done;
   assign_errors learning_rate t
 
-let batch_train ~batch_size training_offset td learning_rate cdf t =
-  let eda    = batch_eda batch_size t in
+let batch_train training_offset td learning_rate cdf t =
+  let b_size = Mat.dim2 td in
+  let eda    = batch_eda b_size t in
   let y_hats = eval_m t eda (lacpy ~m:training_offset td) in
   let ys     = lacpy ~ar:(training_offset + 1) td in
   let costs  =
-    Array.init (Mat.dim2 td) (fun i ->
+    Array.init b_size (fun i ->
       let j     = i + 1 in
       let y_hat = Mat.col y_hats j in
       let y     = Mat.col ys j in
@@ -283,7 +284,7 @@ let sgd_epoch iterative training_offset td ~batch_size learning_rate c t =
     if iterative then
       iterative_train training_offset epoch_td learning_rate c t
     else
-      batch_train ~batch_size training_offset epoch_td learning_rate c t
+      batch_train training_offset epoch_td learning_rate c t
   done
 
 let sgd iterative training_offset training_data ~epochs ~batch_size ~learning_rate
@@ -336,14 +337,14 @@ let load_and_save_mnist_data ?cache () =
   td_vd_ref := Some s;
   s
 
-let do_it ?cache ~batch_size ~hidden_layers ~epochs ~learning_rate =
+let do_it ?cache ~iterative ~batch_size ~hidden_layers ~epochs ~learning_rate =
   let td, vd =
     match !td_vd_ref with
     | None   -> load_and_save_mnist_data ?cache ()
     | Some p -> p
   in
   let t = compile (Mnist.desc hidden_layers) in
-  sgd false
+  sgd iterative
     Mnist.input_size td
     ~epochs
     ~batch_size
