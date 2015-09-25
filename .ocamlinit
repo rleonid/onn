@@ -1,6 +1,8 @@
-#require "lacaml"
-#require "csv"
-open Lacaml.D
-open Bigarray
-#directory "_build/src"
-#load "onn.cma"
+#require "lacaml.top";;
+#require "csv";;
+open Lacaml.D;;
+open Bigarray;;
+#directory "_build/src";;
+#load "onn.cma";;
+Install_printers.install_printers Install_printers.printers;;
+Lacaml.Io.Toplevel.lsc 10 ;;
