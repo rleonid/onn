@@ -78,3 +78,41 @@ real  5m29.447s
 user  5m26.504s
 sys 1m13.162s
 
+Cross entropy:
+using mnist_train_cache.dat as cache
+9215 out of 10000
+9471 out of 10000
+9499 out of 10000
+9559 out of 10000
+9583 out of 10000
+9618 out of 10000
+9641 out of 10000
+9578 out of 10000
+9627 out of 10000
+9657 out of 10000
+9640 out of 10000
+9659 out of 10000
+9664 out of 10000
+9671 out of 10000
+9665 out of 10000
+9676 out of 10000
+9664 out of 10000
+9671 out of 10000
+9676 out of 10000
+9662 out of 10000
+9679 out of 10000
+9671 out of 10000
+9669 out of 10000
+9660 out of 10000
+9680 out of 10000
+9666 out of 10000
+9679 out of 10000
+9667 out of 10000
+9669 out of 10000
+9670 out of 10000
+using mnist_test_cache.dat as cache
+9690 out of 10000 on test data
+
+real  2m41.500s
+user  2m53.696s
+sys 0m19.788s

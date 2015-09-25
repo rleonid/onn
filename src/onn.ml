@@ -51,6 +51,13 @@ module Mat = struct
 
 end
 
+module Vec = struct
+  include Vec
+
+  let map2 f v1 (v2 : vec) =
+    Vec.init (Vec.dim v1) (fun i -> f v1.{i} v2.{i})
+end
+
 (***** Initialization ******)
 let vi = ref (fun n -> Vec.make0 n)
 
@@ -213,7 +220,7 @@ let backprop_m hl ed prev_errors =
   let szs = Mat.map_cols (Nonlinearity.deriv hl.nonlinearity) ed.weight_input in
   let dls = Mat.init_cols m n (fun r c -> prev_errors.{r,c} *. szs.{r,c}) in
   let alpha = 1. /. (float n) in
-  (* update bias error 
+  (* update bias error
   beta is zero by default to zero out the previous error. *)
   let () = ignore (gemv ~y:hl.bias_e ~alpha dls (Vec.make n 1.)) in
   (* update weight error *)
@@ -229,9 +236,23 @@ let backprop_i iteration cost_error t eda =
 
 let rmse_cost y y_hat = (Vec.ssqr_diff y y_hat) /. 2.
 (* This can be a source of confusion *)
-type explicit_cost =  y:vec -> y_hat:vec -> vec
-
 let rmse_cdf ~y ~y_hat = Vec.sub y_hat y
+
+let cross_entropy_cost y y_hat =
+  Vec.map2 (fun y a ->
+    if y = 1. && a = 1. then  (* spare the nan's *)
+      0.0
+    else
+      y *. log a +. (1. -. y) *. (log (a -. 1.)))
+    y y_hat
+
+let cross_entropy_cdf ~y ~y_hat =
+  Vec.map2 (fun y a ->
+    if a = 0. || a = 1. then  (* spare the nan's *)
+      0.0
+    else
+      (a -. y) /. (a *. (1. -. a)))
+    y y_hat
 
 (* The 'errors' are already averaged! *)
 let assign_errors learning_rate t =
@@ -351,7 +372,8 @@ let do_it ?cache ~iterative ~batch_size ~hidden_layers ~epochs ~learning_rate =
     ~report:(fun t ->
       let (c,d) = report_accuracy Mnist.input_size vd t in
       Printf.printf "%d out of %d\n%!" c d)
-    rmse_cdf
+    cross_entropy_cdf
+    (*rmse_cdf*)
     t;
   t
 
