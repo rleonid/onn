@@ -202,7 +202,11 @@ let backprop_l iteration hl ed prev_error =
   let i_f = float iteration in
   let ifi = 1. /. i_f in
   let sz = (Nonlinearity.deriv hl.nonlinearity) ed.weight_input in
-  let dl = Vec.mul prev_error sz in
+  let dl =
+    match sz with
+    | Nonlinearity.Diagonal s -> Vec.mul prev_error s
+    | Nonlinearity.Matrix m   -> gemv m prev_error
+  in
   let () = (* update bias error *)
     scal (1. -. ifi) hl.bias_e;
     axpy ~alpha:ifi dl hl.bias_e
@@ -215,10 +219,22 @@ let backprop_l iteration hl ed prev_error =
 
 (* each column of prev_error is an error of a training example. *)
 let backprop_m hl ed prev_errors =
-  let m = Mat.dim1 prev_errors in
+  (*let m = Mat.dim1 prev_errors in *)
   let n = Mat.dim2 prev_errors in
-  let szs = Mat.map_cols (Nonlinearity.deriv hl.nonlinearity) ed.weight_input in
-  let dls = Mat.init_cols m n (fun r c -> prev_errors.{r,c} *. szs.{r,c}) in
+  let dnl = Nonlinearity.deriv hl.nonlinearity in
+  (*let szs = Mat.map_cols dnl  ed.weight_input in
+  let dls = Mat.init_cols m n (fun r c -> prev_errors.{r,c} *. szs.{r,c}) in *)
+  let dls =
+    Array.init n (fun i_z ->
+      let i = i_z + 1 in
+      let wi = Mat.col ed.weight_input i in
+      let pi = Mat.col prev_errors i in
+      match dnl wi with
+      | Nonlinearity.Diagonal v -> Vec.mul pi v
+      (* And now I understand why we need tensors. *)
+      | Nonlinearity.Matrix m   -> gemv m pi)
+    |> Mat.of_col_vecs
+  in
   let alpha = 1. /. (float n) in
   (* update bias error
   beta is zero by default to zero out the previous error. *)

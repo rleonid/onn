@@ -116,3 +116,44 @@ using mnist_test_cache.dat as cache
 real  2m41.500s
 user  2m53.696s
 sys 0m19.788s
+
+2015-09-27
+Using softmax output and bumped up the lr
+using mnist_train_cache.dat as cache
+9098 out of 10000
+9413 out of 10000
+9499 out of 10000
+9527 out of 10000
+9557 out of 10000
+9595 out of 10000
+9641 out of 10000
+9561 out of 10000
+9596 out of 10000
+9599 out of 10000
+9609 out of 10000
+9658 out of 10000
+9640 out of 10000
+9689 out of 10000
+9671 out of 10000
+9658 out of 10000
+9663 out of 10000
+9682 out of 10000
+9693 out of 10000
+9679 out of 10000
+9679 out of 10000
+9699 out of 10000
+9696 out of 10000
+9701 out of 10000
+9710 out of 10000
+9709 out of 10000
+9724 out of 10000
+9714 out of 10000
+9724 out of 10000
+9724 out of 10000
+using mnist_test_cache.dat as cache
+9702 out of 10000 on test data.
+
+real  1m44.093s
+user  1m55.582s
+sys 0m15.035s
+

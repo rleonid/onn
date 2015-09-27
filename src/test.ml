@@ -9,7 +9,7 @@ let () =
       ~batch_size:10
       ~hidden_layers:100
       ~epochs:30
-      ~learning_rate:0.5
+      ~learning_rate:0.7
   in
   let test_d = Load_mnist.data `Test in
   let (c,t) = Onn.report_accuracy Mnist.input_size test_d t in
