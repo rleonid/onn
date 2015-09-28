@@ -290,10 +290,16 @@ let log_likelihood_cdf ~y ~y_hat =
   c
 
 (* The 'errors' are already averaged! *)
-let assign_errors learning_rate t =
+let assign_errors ?lambda learning_rate t =
   let alpha = -1.0 *. learning_rate in
+  let decay =
+    match lambda with
+    | None   -> 1.0
+    | Some l -> 1.0 -. learning_rate *. l
+  in
   Array.iter (fun hl ->
     axpy ~alpha hl.bias_e hl.bias;
+    Mat.scal decay hl.weights;
     Mat.axpy ~alpha hl.weights_e hl.weights)
     t.hidden_layers
 
@@ -325,8 +331,9 @@ let batch_train training_offset td cdf t =
   in
   Array.fold_right2 backprop_m t.hidden_layers eda costs
 
-let sgd_epoch iterative training_offset td ~batch_size learning_rate c t =
+let sgd_epoch ?lambda iterative training_offset td ~batch_size learning_rate c t =
   let td_size = Mat.dim2 td in
+  let lambda = Option.map lambda ~f:(fun l -> l /. (float td_size)) in
   let perm = permutation_gen td_size in
   let () = lapmt td perm in
   let num_bat = td_size / batch_size - 1 in
@@ -339,13 +346,13 @@ let sgd_epoch iterative training_offset td ~batch_size learning_rate c t =
       else
         batch_train training_offset epoch_td c t
     in
-    assign_errors learning_rate t
+    assign_errors ?lambda learning_rate t
   done
 
 let sgd iterative training_offset training_data ~epochs ~batch_size ~learning_rate
-  ?(report=(fun _ -> ())) c t =
+  ?(report=(fun _ -> ())) ?lambda c t =
   for i = 1 to epochs do
-    sgd_epoch iterative training_offset training_data ~batch_size learning_rate c t;
+    sgd_epoch ?lambda iterative training_offset training_data ~batch_size learning_rate c t;
     report t
   done
 
@@ -392,7 +399,7 @@ let load_and_save_mnist_data ?cache () =
   td_vd_ref := Some s;
   s
 
-let do_it ?cache ?training_size ?(training_perf=(fun _ _ -> ())) ?(iterative=false)
+let do_it ?cache ?training_size ?(training_perf=(fun _ _ -> ())) ?(iterative=false) ?lambda
   ~batch_size ~num_hidden_nodes ~epochs ~learning_rate cdf =
   let td, vd =
     match !td_vd_ref with
@@ -413,6 +420,7 @@ let do_it ?cache ?training_size ?(training_perf=(fun _ _ -> ())) ?(iterative=fal
       Printf.printf "%d: %d out of %d\n%!" !epoch_r c d;
       incr epoch_r)
     cdf
+    ?lambda
     (*log_likelihood_cdf*)
     (*cross_entropy_cdf*)
     (*rmse_cdf*)
