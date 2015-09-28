@@ -391,13 +391,13 @@ let load_and_save_mnist_data ?cache () =
   td_vd_ref := Some s;
   s
 
-let do_it ?cache ~iterative ~batch_size ~hidden_layers ~epochs ~learning_rate =
+let do_it ?cache ~iterative ~batch_size ~num_hidden_nodes ~epochs ~learning_rate =
   let td, vd =
     match !td_vd_ref with
     | None   -> load_and_save_mnist_data ?cache ()
     | Some p -> p
   in
-  let t = compile (Mnist.desc hidden_layers) in
+  let t = compile (Mnist.desc num_hidden_nodes) in
   sgd iterative
     Mnist.input_size td
     ~epochs
