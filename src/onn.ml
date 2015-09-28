@@ -270,6 +270,24 @@ let cross_entropy_cdf ~y ~y_hat =
       (a -. y) /. (a *. (1. -. a)))
     y y_hat
 
+let log_likelihood_cost y (y_hat : vec) =
+  let (idx, _) =
+    Vec.fold (fun (i, j) y -> if y = 1.0 then j, j + 1 else i, j + 1)
+      (1,1) y
+  in
+  let c = Vec.make0 (Vec.dim y) in
+  c.{idx} <- -1.0 *. log y_hat.{idx};
+  c
+
+let log_likelihood_cdf ~y ~y_hat =
+  let (idx, _) =
+    Vec.fold (fun (i, j) y -> if y = 1.0 then j, j + 1 else i, j + 1)
+      (1,1) y
+  in
+  let c = Vec.make0 (Vec.dim y) in
+  c.{idx} <- -1.0 /. y_hat.{idx};
+  c
+
 (* The 'errors' are already averaged! *)
 let assign_errors learning_rate t =
   let alpha = -1.0 *. learning_rate in
@@ -388,7 +406,8 @@ let do_it ?cache ~iterative ~batch_size ~hidden_layers ~epochs ~learning_rate =
     ~report:(fun t ->
       let (c,d) = report_accuracy Mnist.input_size vd t in
       Printf.printf "%d out of %d\n%!" c d)
-    cross_entropy_cdf
+    log_likelihood_cdf
+    (*cross_entropy_cdf*)
     (*rmse_cdf*)
     t;
   t

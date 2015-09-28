@@ -157,3 +157,42 @@ real  1m44.093s
 user  1m55.582s
 sys 0m15.035s
 
+Log-likelihood:
+using mnist_train_cache.dat as cache
+9151 out of 10000
+9405 out of 10000
+9422 out of 10000
+9532 out of 10000
+9524 out of 10000
+9569 out of 10000
+9585 out of 10000
+9566 out of 10000
+9557 out of 10000
+9616 out of 10000
+9556 out of 10000
+9627 out of 10000
+9642 out of 10000
+9636 out of 10000
+9636 out of 10000
+9636 out of 10000
+9625 out of 10000
+9642 out of 10000
+9650 out of 10000
+9656 out of 10000
+9635 out of 10000
+9646 out of 10000
+9654 out of 10000
+9646 out of 10000
+9651 out of 10000
+9649 out of 10000
+9653 out of 10000
+9648 out of 10000
+9649 out of 10000
+9652 out of 10000
+using mnist_test_cache.dat as cache
+9635 out of 10000 on test data.
+
+real  2m21.968s
+user  2m31.021s
+sys 0m17.335s
+
