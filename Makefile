@@ -1,9 +1,14 @@
 
+PACKAGES=lacaml,nonstd
+
 default:
-	ocamlbuild -package lacaml -I src test.native
+	ocamlbuild -pkgs $(PACKAGES) -I src test.native
 
 onn:
-	ocamlbuild -package lacaml -I src onn.cma
+	ocamlbuild -pkgs $(PACKAGES) -I src onn.cma
+
+long:
+	ocamlbuild -pkgs $(PACKAGES) -I src long.native
 
 clean:
 	ocamlbuild -clean

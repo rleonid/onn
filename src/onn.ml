@@ -1,6 +1,7 @@
 
 open Lacaml.D
 open Bigarray
+open Nonstd
 
 let invalidArg fmt = Printf.ksprintf (fun s -> raise (Invalid_argument s)) fmt
 
@@ -84,7 +85,7 @@ let shuffle_gen n =
 
 let permutation_gen n =
   shuffle_gen n
-  |> Array.map (fun i -> Int32.of_int (i + 1))
+  |> Array.map ~f:(fun i -> Int32.of_int (i + 1))
   |> Array1.of_array Int32 Fortran_layout
 
 
@@ -147,7 +148,7 @@ type t =
   }
 
 let copy_t t =
-  { t with hidden_layers = Array.map copy_hidden t.hidden_layers }
+  { t with hidden_layers = Array.map ~f:copy_hidden t.hidden_layers }
 
 let compile desc =
   let input_size, as_lst, len = repr ([],0) desc in
@@ -157,14 +158,14 @@ let compile desc =
 
 let single_eda t =
   t.hidden_layers
-  |> Array.map (fun hl ->
+  |> Array.map ~f:(fun hl ->
       let m = Mat.dim1 hl.weights in
       let n = Mat.dim2 hl.weights in
       single_ed ~m ~n)
 
 let batch_eda b t =
   t.hidden_layers
-  |> Array.map (fun hl ->
+  |> Array.map ~f:(fun hl ->
       let m = Mat.dim1 hl.weights in
       let n = Mat.dim2 hl.weights in
       batch_ed ~m ~n b)
@@ -259,7 +260,7 @@ let cross_entropy_cost y y_hat =
     if y = 1. && a = 1. then  (* spare the nan's *)
       0.0
     else
-      y *. log a +. (1. -. y) *. (log (a -. 1.)))
+      y *. log a +. (1. -. y) *. (log (1. -. a)))
     y y_hat
 
 let cross_entropy_cdf ~y ~y_hat =
@@ -349,7 +350,7 @@ let sgd iterative training_offset training_data ~epochs ~batch_size ~learning_ra
   done
 
 let split_validation ?seed size td =
-  let () = match seed with | None -> () | Some s -> Random.init s in
+  let () = Option.map ~f:Random.init seed |> ignore in
   let n  = Mat.dim2 td in
   let permutation = permutation_gen n in
   lapmt td permutation;
@@ -391,22 +392,28 @@ let load_and_save_mnist_data ?cache () =
   td_vd_ref := Some s;
   s
 
-let do_it ?cache ~iterative ~batch_size ~num_hidden_nodes ~epochs ~learning_rate =
+let do_it ?cache ?training_size ?(training_perf=(fun _ _ -> ())) ?(iterative=false)
+  ~batch_size ~num_hidden_nodes ~epochs ~learning_rate cdf =
   let td, vd =
     match !td_vd_ref with
     | None   -> load_and_save_mnist_data ?cache ()
     | Some p -> p
   in
+  let td = Option.value_map training_size ~default:td ~f:(fun n -> lacpy ~n td)  in
   let t = compile (Mnist.desc num_hidden_nodes) in
+  let epoch_r = ref 1 in
   sgd iterative
     Mnist.input_size td
     ~epochs
     ~batch_size
     ~learning_rate
     ~report:(fun t ->
+      let () = training_perf td t in
       let (c,d) = report_accuracy Mnist.input_size vd t in
-      Printf.printf "%d out of %d\n%!" c d)
-    log_likelihood_cdf
+      Printf.printf "%d: %d out of %d\n%!" !epoch_r c d;
+      incr epoch_r)
+    cdf
+    (*log_likelihood_cdf*)
     (*cross_entropy_cdf*)
     (*rmse_cdf*)
     t;

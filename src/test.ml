@@ -5,11 +5,11 @@ let () =
   let t =
     Onn.do_it
       ~cache:true
-      ~iterative:false
       ~batch_size:10
       ~num_hidden_nodes:100
       ~epochs:30
       ~learning_rate:0.5
+      Onn.cross_entropy_cdf
   in
   let test_d = Load_mnist.data `Test in
   let (c,t) = Onn.report_accuracy Mnist.input_size test_d t in
