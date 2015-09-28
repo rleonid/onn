@@ -196,3 +196,37 @@ real  2m21.968s
 user  2m31.021s
 sys 0m17.335s
 
+With regularization.
+using mnist_train_cache.dat as cache
+1: 9269 out of 10000
+2: 9386 out of 10000
+3: 9569 out of 10000
+4: 9642 out of 10000
+5: 9603 out of 10000
+6: 9685 out of 10000
+7: 9701 out of 10000
+8: 9649 out of 10000
+9: 9717 out of 10000
+10: 9732 out of 10000
+11: 9681 out of 10000
+12: 9699 out of 10000
+13: 9724 out of 10000
+14: 9709 out of 10000
+15: 9669 out of 10000
+16: 9625 out of 10000
+17: 9640 out of 10000
+18: 9713 out of 10000
+19: 9704 out of 10000
+20: 9686 out of 10000
+21: 9753 out of 10000
+22: 9731 out of 10000
+23: 9727 out of 10000
+24: 9672 out of 10000
+25: 9732 out of 10000
+26: 9760 out of 10000
+27: 9650 out of 10000
+28: 9677 out of 10000
+29: 9632 out of 10000
+30: 9733 out of 10000
+using mnist_test_cache.dat as cache
+9731 out of 10000 on test data.
