@@ -289,17 +289,25 @@ let log_likelihood_cdf ~y ~y_hat =
   c.{idx} <- -1.0 /. y_hat.{idx};
   c
 
+(* TODO: Move these into the cost. *)
 (* The 'errors' are already averaged! *)
 let assign_errors ?lambda learning_rate t =
   let alpha = -1.0 *. learning_rate in
-  let decay =
+  let regularize =
     match lambda with
-    | None   -> 1.0
-    | Some l -> 1.0 -. learning_rate *. l
+    | None              ->
+        (fun _ -> ())
+    | Some ((`L2 l), n) ->
+        let decay = 1.0 -. (learning_rate *. l /. n) in
+        (fun weights -> Mat.scal decay weights)
+    | Some ((`L1 l), n) ->
+        let sgn m = Mat.map (fun x -> if x > 0.0 then 1.0 else if x < 0.0 then -1.0 else 0.0) m in
+        let alpha = -1.0 *. learning_rate *. l /.n in
+        (fun weights -> Mat.axpy ~alpha (sgn weights) weights)
   in
   Array.iter (fun hl ->
     axpy ~alpha hl.bias_e hl.bias;
-    Mat.scal decay hl.weights;
+    regularize hl.weights;
     Mat.axpy ~alpha hl.weights_e hl.weights)
     t.hidden_layers
 
@@ -333,7 +341,7 @@ let batch_train training_offset td cdf t =
 
 let sgd_epoch ?lambda iterative training_offset td ~batch_size learning_rate c t =
   let td_size = Mat.dim2 td in
-  let lambda = Option.map lambda ~f:(fun l -> l /. (float td_size)) in
+  let lambda = Option.map lambda ~f:(fun l -> l , float td_size) in
   let perm = permutation_gen td_size in
   let () = lapmt td perm in
   let num_bat = td_size / batch_size - 1 in
