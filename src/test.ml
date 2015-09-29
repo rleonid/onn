@@ -8,7 +8,7 @@ let () =
       ~num_hidden_nodes:100
       ~epochs:30
       ~learning_rate:0.5
-      ~lambda:(`L1 5.0)
+      (*~lambda:(`L1 5.0) *)
       Onn.cross_entropy_cdf
   in
   let test_d = Load_mnist.data `Test in

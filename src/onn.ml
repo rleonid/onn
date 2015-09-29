@@ -140,6 +140,17 @@ let rec repr (acc, l) = function
       let w = Mat.of_col_vecs (Array.init m (fun _ -> !vi n)) in
       let h = hidden nl w b  in
       repr (h :: acc, l + 1) pl
+  | Desc.ScaledInit (nl, n, pl)  ->
+      let b = !vi n in
+      let m = Desc.to_size pl in
+      let w =
+        Mat.of_col_vecs (Array.init m (fun _ ->
+          let w = !vi n in
+          scal (1.0 /. sqrt (float n)) w;
+          w))
+      in
+      let h = hidden nl w b  in
+      repr (h :: acc, l + 1) pl
 
 type t =
   { input_size    : int
