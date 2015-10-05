@@ -1,4 +1,5 @@
 data/mnist/*ubyte
+data/cifar_10/*
 *.cm*
 *.annot
 *.native

@@ -1,4 +1,6 @@
-(* Load MNIST data *)
+(* Load MNIST data
+ * http://yann.lecun.com/exdb/mnist/
+ *)
 
 open Printf
 open Bigarray
