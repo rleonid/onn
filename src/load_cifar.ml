@@ -5,10 +5,10 @@
 open Printf
 
 let train_batch1_fname = "data/cifar_10/cifar-10-batches-bin/data_batch_1.bin"
-let train_batch1_fname = "data/cifar_10/cifar-10-batches-bin/data_batch_2.bin"
-let train_batch1_fname = "data/cifar_10/cifar-10-batches-bin/data_batch_3.bin"
-let train_batch1_fname = "data/cifar_10/cifar-10-batches-bin/data_batch_4.bin"
-let train_batch1_fname = "data/cifar_10/cifar-10-batches-bin/data_batch_5.bin"
+let train_batch2_fname = "data/cifar_10/cifar-10-batches-bin/data_batch_2.bin"
+let train_batch3_fname = "data/cifar_10/cifar-10-batches-bin/data_batch_3.bin"
+let train_batch4_fname = "data/cifar_10/cifar-10-batches-bin/data_batch_4.bin"
+let train_batch5_fname = "data/cifar_10/cifar-10-batches-bin/data_batch_5.bin"
 let test_batch_fname = "data/cifar_10/cifar-10-batches-bin/test_batch.bin"
 
 let parse_file ~d ~t fname =
