@@ -56,11 +56,4 @@ let w02 =
   |> Mat.of_array
   |> unroll_mat_sq_to_vec
 
-module type Matrix_like_intf = sig
-  type t
-  val rows : t -> int
-  val cols : t -> int
-  val get : t -> int -> int -> float
-end
-
 

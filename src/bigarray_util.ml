@@ -1,3 +1,4 @@
+
 let to_offset : type a. a layout -> (int -> int) = function
   | Fortran_layout -> (fun i -> i + 1)
   | C_layout       -> (fun i -> i)
